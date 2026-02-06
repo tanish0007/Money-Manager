@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Chart as ChartJS, ArcElement, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
 import { Doughnut, Bar } from 'react-chartjs-2';
-import { TrendingUp, TrendingDown, Wallet, CreditCard, Building, PiggyBank } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, CreditCard, Building, PiggyBank, ArrowRight } from 'lucide-react';
+import { Link } from 'react-router';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
 
@@ -9,6 +10,7 @@ ChartJS.register(ArcElement, CategoryScale, LinearScale, BarElement, Title, Tool
 
 const Overview = () => {
   const [summary, setSummary] = useState(null);
+  const [recentTransactions, setRecentTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState('monthly');
   const [customRange, setCustomRange] = useState({
@@ -26,6 +28,7 @@ const Overview = () => {
 
   useEffect(() => {
     fetchSummary();
+    fetchRecentTransactions();
   }, [period]);
 
   const fetchSummary = async () => {
@@ -53,12 +56,33 @@ const Overview = () => {
     }
   };
 
+  const fetchRecentTransactions = async () => {
+    try {
+      const { data } = await api.get('/transactions?limit=5&sort=-date');
+      if (data.success) {
+        setRecentTransactions(data.transactions || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch recent transactions');
+    }
+  };
+
   const handleCustomRangeSubmit = () => {
     if (customRange.startDate && customRange.endDate) {
       fetchSummary();
     } else {
       toast.error('Please select both start and end dates');
     }
+  };
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-IN', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   if (loading) {
@@ -89,15 +113,60 @@ const Overview = () => {
     }]
   };
 
-  const divisionData = {
-    labels: ['Personal', 'Office'],
+  const incomeExpenseData = {
+    labels: ['Income', 'Expense'],
     datasets: [{
-      data: [
-        summary?.divisionBreakdown?.personal || 0,
-        summary?.divisionBreakdown?.office || 0
+      label: 'Amount (₹)',
+      data: [summary?.totalIncome || 0, summary?.totalExpense || 0],
+      backgroundColor: [
+        'rgba(34, 197, 94, 0.8)',
+        'rgba(239, 68, 68, 0.8)'
       ],
-      backgroundColor: ['#3b82f6', '#10b981']
+      borderColor: [
+        'rgba(34, 197, 94, 1)',
+        'rgba(239, 68, 68, 1)'
+      ],
+      borderWidth: 2
     }]
+  };
+
+  const chartOptions = {
+    maintainAspectRatio: false,
+    responsive: true,
+    plugins: {
+      legend: {
+        display: true,
+        position: 'top',
+        labels: {
+          color: document.documentElement.classList.contains('dark') ? '#9ca3af' : '#374151',
+          font: {
+            size: 12
+          }
+        }
+      }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        ticks: {
+          color: document.documentElement.classList.contains('dark') ? '#9ca3af' : '#374151',
+          callback: function(value) {
+            return '₹' + value.toLocaleString();
+          }
+        },
+        grid: {
+          color: document.documentElement.classList.contains('dark') ? '#374151' : '#e5e7eb'
+        }
+      },
+      x: {
+        ticks: {
+          color: document.documentElement.classList.contains('dark') ? '#9ca3af' : '#374151'
+        },
+        grid: {
+          color: document.documentElement.classList.contains('dark') ? '#374151' : '#e5e7eb'
+        }
+      }
+    }
   };
 
   return (
@@ -173,7 +242,7 @@ const Overview = () => {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">Total Income</p>
@@ -187,7 +256,7 @@ const Overview = () => {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">Total Expense</p>
@@ -201,7 +270,7 @@ const Overview = () => {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">Balance</p>
@@ -225,7 +294,7 @@ const Overview = () => {
           const Icon = account.icon;
           const balance = summary?.accountBalances?.[account.key] || 0;
           return (
-            <div key={account.key} className="bg-white dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div key={account.key} className="bg-white dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-shadow">
               <div className="flex items-center space-x-3">
                 <div className={`p-2 rounded-full bg-gray-100 dark:bg-gray-700 ${account.color}`}>
                   <Icon className="h-5 w-5" />
@@ -244,6 +313,17 @@ const Overview = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Income vs Expense</h3>
+          <div className="h-64 flex items-center justify-center">
+            {(summary?.totalIncome || 0) + (summary?.totalExpense || 0) > 0 ? (
+              <Bar data={incomeExpenseData} options={chartOptions} />
+            ) : (
+              <p className="text-gray-500 dark:text-gray-400">No data available</p>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Category Breakdown</h3>
           <div className="h-64 flex items-center justify-center">
             {Object.keys(summary?.categoryBreakdown || {}).length > 0 ? (
@@ -253,16 +333,65 @@ const Overview = () => {
             )}
           </div>
         </div>
+      </div>
 
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Division Breakdown</h3>
-          <div className="h-64 flex items-center justify-center">
-            {(summary?.divisionBreakdown?.personal || 0) + (summary?.divisionBreakdown?.office || 0) > 0 ? (
-              <Doughnut data={divisionData} options={{ maintainAspectRatio: false }} />
-            ) : (
-              <p className="text-gray-500 dark:text-gray-400">No data available</p>
-            )}
-          </div>
+      {/* Recent Transactions */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Recent Transactions</h3>
+          <Link
+            to="/dashboard/transactions"
+            className="flex items-center text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors group"
+          >
+            <span className="text-sm font-medium">View More</span>
+            <ArrowRight className="ml-1 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+          </Link>
+        </div>
+        <div className="divide-y divide-gray-200 dark:divide-gray-700">
+          {recentTransactions.length > 0 ? (
+            recentTransactions.slice(0, 5).map((transaction) => (
+              <div
+                key={transaction._id}
+                className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+              >
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`px-2 py-0.5 text-xs font-medium rounded ${
+                        transaction.type === 'income'
+                          ? 'bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400'
+                          : 'bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-400'
+                      }`}>
+                        {transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}
+                      </span>
+                      <span className="px-2 py-0.5 text-xs font-medium rounded bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400">
+                        {transaction.category.charAt(0).toUpperCase() + transaction.category.slice(1)}
+                      </span>
+                    </div>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                      {transaction.description}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      {formatDate(transaction.date)}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className={`text-lg font-bold ${
+                      transaction.type === 'income'
+                        ? 'text-green-600 dark:text-green-400'
+                        : 'text-red-600 dark:text-red-400'
+                    }`}>
+                      {transaction.type === 'income' ? '+' : '-'}₹{transaction.amount.toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="p-8 text-center">
+              <p className="text-gray-500 dark:text-gray-400">No recent transactions</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

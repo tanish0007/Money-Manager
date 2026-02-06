@@ -78,20 +78,57 @@ export const createTransaction = async (req, res) => {
 
 export const getTransactions = async (req, res) => {
   try {
-    const { period, month, year, week, division, category, account, startDate, endDate } = req.query;
+    const { 
+      period, 
+      month, 
+      year, 
+      week, 
+      division, 
+      category, 
+      account, 
+      startDate, 
+      endDate,
+      limit,
+      sort 
+    } = req.query;
 
-    const { start, end } = getDateRange(period, month, year, week, startDate, endDate);
-
+    // Build base query
     const query = {
-      userId: req.user._id,
-      date: { $gte: start, $lte: end }
+      userId: req.user._id
     };
 
+    // Add date range filter only if period is specified
+    if (period) {
+      const { start, end } = getDateRange(period, month, year, week, startDate, endDate);
+      query.date = { $gte: start, $lte: end };
+    }
+
+    // Add optional filters
     if (division) query.division = division;
     if (category) query.category = category;
     if (account) query.account = account;
 
-    const transactions = await Transaction.find(query).sort({ date: -1 });
+    // Build the query
+    let transactionQuery = Transaction.find(query);
+
+    // Handle sorting
+    if (sort) {
+      // Support sort parameter like "-date" for descending or "date" for ascending
+      transactionQuery = transactionQuery.sort(sort);
+    } else {
+      // Default sort by date descending
+      transactionQuery = transactionQuery.sort({ date: -1 });
+    }
+
+    // Handle limit
+    if (limit) {
+      const limitNum = parseInt(limit);
+      if (limitNum > 0) {
+        transactionQuery = transactionQuery.limit(limitNum);
+      }
+    }
+
+    const transactions = await transactionQuery;
 
     res.json({
       success: true,
